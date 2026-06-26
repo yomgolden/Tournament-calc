@@ -29,10 +29,14 @@ class TournamentBuilder:
 
         slot = len(self.teams) + 1
 
-        self.teams.append({
-            "slot": slot,
-            "name": name
-        })
+        from models.team import Team
+
+     self.teams.append(
+       Team(
+       slot=slot,
+       name=name
+        )
+    )
 
     def rename_team(self, slot: int, name: str):
 
