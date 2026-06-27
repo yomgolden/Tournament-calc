@@ -1,156 +1,68 @@
-# database/models.py
+"""SQL table definitions for the tournament bot."""
 
-from database.storage import db
+CREATE_USERS = """
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY,
+    telegram_id INTEGER UNIQUE NOT NULL,
+    username TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+"""
 
+CREATE_TOURNAMENTS = """
+CREATE TABLE IF NOT EXISTS tournaments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    owner_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    mode TEXT NOT NULL DEFAULT 'battle_royale',
+    status TEXT NOT NULL DEFAULT 'active',
+    kill_points INTEGER NOT NULL DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (owner_id) REFERENCES users(telegram_id)
+);
+"""
 
-class TournamentModel:
+CREATE_TEAMS = """
+CREATE TABLE IF NOT EXISTS teams (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tournament_id INTEGER NOT NULL,
+    slot INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    FOREIGN KEY (tournament_id) REFERENCES tournaments(id) ON DELETE CASCADE,
+    UNIQUE (tournament_id, slot),
+    UNIQUE (tournament_id, name)
+);
+"""
 
-    # -----------------------------
-    # CREATE TOURNAMENT
-    # -----------------------------
+CREATE_RANKINGS = """
+CREATE TABLE IF NOT EXISTS rankings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tournament_id INTEGER NOT NULL,
+    placement INTEGER NOT NULL,
+    points INTEGER NOT NULL,
+    FOREIGN KEY (tournament_id) REFERENCES tournaments(id) ON DELETE CASCADE,
+    UNIQUE (tournament_id, placement)
+);
+"""
 
-    @staticmethod
-    def create(owner_id, name, mode, max_teams, kill_points=1):
+CREATE_RESULTS = """
+CREATE TABLE IF NOT EXISTS results (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tournament_id INTEGER NOT NULL,
+    match_number INTEGER NOT NULL,
+    team_id INTEGER NOT NULL,
+    placement INTEGER,
+    kills INTEGER NOT NULL DEFAULT 0,
+    FOREIGN KEY (tournament_id) REFERENCES tournaments(id) ON DELETE CASCADE,
+    FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE,
+    UNIQUE (tournament_id, match_number, team_id)
+);
+"""
 
-        cursor = db.execute(
-            """
-            INSERT INTO tournaments
-            (owner_id, name, mode, max_teams, kill_points)
-
-            VALUES (?, ?, ?, ?, ?)
-            """,
-            (owner_id, name, mode, max_teams, kill_points)
-        )
-
-        return cursor.lastrowid
-
-
-    # -----------------------------
-    # GET TOURNAMENT
-    # -----------------------------
-
-    @staticmethod
-    def get(tournament_id):
-
-        return db.fetchone(
-            """
-            SELECT *
-            FROM tournaments
-            WHERE id = ?
-            """,
-            (tournament_id,)
-        )
-
-
-    # -----------------------------
-    # GET USER TOURNAMENTS
-    # -----------------------------
-
-    @staticmethod
-    def get_user_tournaments(owner_id):
-
-        return db.fetchall(
-            """
-            SELECT *
-            FROM tournaments
-
-            WHERE owner_id = ?
-
-            ORDER BY id DESC
-            """,
-            (owner_id,)
-        )
-
-
-    # -----------------------------
-    # DELETE TOURNAMENT
-    # -----------------------------
-
-    @staticmethod
-    def delete(tournament_id):
-
-        db.execute(
-            """
-            DELETE FROM tournaments
-
-            WHERE id = ?
-            """,
-            (tournament_id,)
-        )
-
-
-class TeamModel:
-
-    # -----------------------------
-    # ADD TEAM
-    # -----------------------------
-
-    @staticmethod
-    def add_team(tournament_id, slot, name):
-
-        db.execute(
-            """
-            INSERT INTO teams
-            (tournament_id, slot, name)
-
-            VALUES (?, ?, ?)
-            """,
-            (tournament_id, slot, name)
-        )
-
-
-    # -----------------------------
-    # GET ALL TEAMS
-    # -----------------------------
-
-    @staticmethod
-    def get_teams(tournament_id):
-
-        return db.fetchall(
-            """
-            SELECT *
-
-            FROM teams
-
-            WHERE tournament_id = ?
-
-            ORDER BY slot
-            """,
-            (tournament_id,)
-        )
-
-
-    # -----------------------------
-    # RENAME TEAM
-    # -----------------------------
-
-    @staticmethod
-    def rename_team(team_id, new_name):
-
-        db.execute(
-            """
-            UPDATE teams
-
-            SET name = ?
-
-            WHERE id = ?
-            """,
-            (new_name, team_id)
-        )
-
-
-    # -----------------------------
-    # REMOVE TEAM
-    # -----------------------------
-
-    @staticmethod
-    def delete_team(team_id):
-
-        db.execute(
-            """
-            DELETE FROM teams
-
-            WHERE id = ?
-            """,
-            (team_id,)
-        )
+ALL_TABLES = [
+    CREATE_USERS,
+    CREATE_TOURNAMENTS,
+    CREATE_TEAMS,
+    CREATE_RANKINGS,
+    CREATE_RESULTS,
+]
