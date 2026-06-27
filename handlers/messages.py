@@ -1,11 +1,13 @@
 """
-Message router.
-Handles all user text while using the wizard.
+Message Router
+
+Handles every text message while the
+user is inside a tournament wizard.
 """
 
 from aiogram import Router
-from aiogram.types import Message
 from aiogram.fsm.context import FSMContext
+from aiogram.types import Message
 
 from wizard.session import CreateTournament
 from features.battle_royale import tournament
@@ -13,9 +15,9 @@ from features.battle_royale import tournament
 router = Router()
 
 
-# =====================================================
-# TOURNAMENT NAME
-# =====================================================
+# ==========================================
+# Tournament Name
+# ==========================================
 
 @router.message(CreateTournament.name)
 async def tournament_name(
@@ -28,12 +30,12 @@ async def tournament_name(
     )
 
 
-# =====================================================
-# NUMBER OF TEAMS
-# =====================================================
+# ==========================================
+# Team Count
+# ==========================================
 
 @router.message(CreateTournament.num_teams)
-async def number_of_teams(
+async def team_count(
     message: Message,
     state: FSMContext
 ):
@@ -43,12 +45,12 @@ async def number_of_teams(
     )
 
 
-# =====================================================
-# TEAM ENTRY
-# =====================================================
+# ==========================================
+# Team Entry
+# ==========================================
 
 @router.message(CreateTournament.entering_teams)
-async def team_entry(
+async def team_name(
     message: Message,
     state: FSMContext
 ):
@@ -58,9 +60,9 @@ async def team_entry(
     )
 
 
-# =====================================================
-# RANKING POINTS
-# =====================================================
+# ==========================================
+# Ranking Max Points
+# ==========================================
 
 @router.message(CreateTournament.ranking_max_points)
 async def ranking_points(
@@ -73,9 +75,9 @@ async def ranking_points(
     )
 
 
-# =====================================================
-# KILL POINTS
-# =====================================================
+# ==========================================
+# Kill Points
+# ==========================================
 
 @router.message(CreateTournament.ranking_kill_points)
 async def kill_points(
