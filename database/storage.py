@@ -1,115 +1,298 @@
-# database/storage.py
+"""
+Database storage layer.
+"""
 
-import sqlite3
-from pathlib import Path
+import aiosqlite
 
-from config import DATABASE_PATH
+from config import DB_PATH
+
+from database.models import (
+    USERS_TABLE,
+    TOURNAMENTS_TABLE,
+    TEAMS_TABLE,
+    RANKINGS_TABLE,
+    RESULTS_TABLE,
+)
 
 
-class Database:
-    def __init__(self):
-        Path("data").mkdir(exist_ok=True)
+# =====================================================
+# DATABASE INITIALIZATION
+# =====================================================
 
-        self.connection = sqlite3.connect(DATABASE_PATH)
-        self.connection.row_factory = sqlite3.Row
+async def init_db():
 
-        self.create_tables()
+    async with aiosqlite.connect(DB_PATH) as db:
 
-    def create_tables(self):
-        cursor = self.connection.cursor()
+        await db.execute("PRAGMA foreign_keys = ON;")
 
-        # Users
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            telegram_id INTEGER UNIQUE NOT NULL,
-            username TEXT,
-            first_name TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        await db.execute(USERS_TABLE)
+        await db.execute(TOURNAMENTS_TABLE)
+        await db.execute(TEAMS_TABLE)
+        await db.execute(RANKINGS_TABLE)
+        await db.execute(RESULTS_TABLE)
+
+        await db.commit()
+
+
+# =====================================================
+# USERS
+# =====================================================
+
+async def upsert_user(
+    telegram_id: int,
+    username: str | None = None,
+    first_name: str | None = None,
+):
+
+    async with aiosqlite.connect(DB_PATH) as db:
+
+        await db.execute(
+            """
+            INSERT INTO users
+            (telegram_id, username, first_name)
+
+            VALUES (?, ?, ?)
+
+            ON CONFLICT(telegram_id)
+
+            DO UPDATE SET
+
+                username = excluded.username,
+
+                first_name = excluded.first_name;
+            """,
+            (
+                telegram_id,
+                username,
+                first_name,
+            ),
         )
-        """)
 
-        # Tournaments
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS tournaments (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            owner_id INTEGER NOT NULL,
-            name TEXT NOT NULL,
-            mode TEXT NOT NULL,
-            status TEXT DEFAULT 'Active',
-            max_teams INTEGER NOT NULL,
-            kill_points INTEGER DEFAULT 1,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        await db.commit()
+
+
+# =====================================================
+# TOURNAMENTS
+# =====================================================
+
+async def create_tournament(
+
+    owner_id: int,
+
+    name: str,
+
+    mode: str,
+
+    max_teams: int,
+
+    kill_points: int,
+
+):
+
+    async with aiosqlite.connect(DB_PATH) as db:
+
+        cursor = await db.execute(
+            """
+            INSERT INTO tournaments
+            (
+                owner_id,
+                name,
+                mode,
+                max_teams,
+                kill_points
+            )
+
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                owner_id,
+                name,
+                mode,
+                max_teams,
+                kill_points,
+            ),
         )
-        """)
 
-        # Teams
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS teams (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tournament_id INTEGER NOT NULL,
-            slot INTEGER NOT NULL,
-            name TEXT NOT NULL,
+        await db.commit()
 
-            FOREIGN KEY(tournament_id)
-                REFERENCES tournaments(id)
-                ON DELETE CASCADE
+        return cursor.lastrowid
+
+
+async def get_user_tournaments(
+    owner_id: int
+):
+
+    async with aiosqlite.connect(DB_PATH) as db:
+
+        db.row_factory = aiosqlite.Row
+
+        cursor = await db.execute(
+            """
+            SELECT *
+
+            FROM tournaments
+
+            WHERE owner_id = ?
+
+            ORDER BY id DESC
+            """,
+            (owner_id,),
         )
-        """)
 
-        # Placement Points
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS rankings (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tournament_id INTEGER NOT NULL,
-            placement INTEGER NOT NULL,
-            points INTEGER NOT NULL,
+        return await cursor.fetchall()
 
-            FOREIGN KEY(tournament_id)
-                REFERENCES tournaments(id)
-                ON DELETE CASCADE
+
+async def get_tournament(
+    tournament_id: int
+):
+
+    async with aiosqlite.connect(DB_PATH) as db:
+
+        db.row_factory = aiosqlite.Row
+
+        cursor = await db.execute(
+            """
+            SELECT *
+
+            FROM tournaments
+
+            WHERE id = ?
+            """,
+            (tournament_id,),
         )
-        """)
 
-        # Match Results
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS results (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tournament_id INTEGER NOT NULL,
-            match_number INTEGER NOT NULL,
-            team_id INTEGER NOT NULL,
-            placement INTEGER NOT NULL,
-            kills INTEGER NOT NULL,
-            placement_points INTEGER NOT NULL,
-            total_points INTEGER NOT NULL,
+        return await cursor.fetchone()
 
-            FOREIGN KEY(tournament_id)
-                REFERENCES tournaments(id)
-                ON DELETE CASCADE,
 
-            FOREIGN KEY(team_id)
-                REFERENCES teams(id)
-                ON DELETE CASCADE
+async def delete_tournament(
+    tournament_id: int
+):
+
+    async with aiosqlite.connect(DB_PATH) as db:
+
+        await db.execute(
+            """
+            DELETE FROM tournaments
+
+            WHERE id = ?
+            """,
+            (tournament_id,),
         )
-        """)
 
-        self.connection.commit()
-
-    def execute(self, query, values=()):
-        cursor = self.connection.cursor()
-        cursor.execute(query, values)
-        self.connection.commit()
-        return cursor
-
-    def fetchone(self, query, values=()):
-        cursor = self.connection.cursor()
-        cursor.execute(query, values)
-        return cursor.fetchone()
-
-    def fetchall(self, query, values=()):
-        cursor = self.connection.cursor()
-        cursor.execute(query, values)
-        return cursor.fetchall()
+        await db.commit()
 
 
-db = Database()
+# =====================================================
+# TEAMS
+# =====================================================
+
+async def insert_teams(
+    tournament_id: int,
+    teams: list[str],
+):
+
+    async with aiosqlite.connect(DB_PATH) as db:
+
+        for slot, name in enumerate(teams, start=1):
+
+            await db.execute(
+                """
+                INSERT INTO teams
+                (
+                    tournament_id,
+                    slot,
+                    name
+                )
+
+                VALUES (?, ?, ?)
+                """,
+                (
+                    tournament_id,
+                    slot,
+                    name,
+                ),
+            )
+
+        await db.commit()
+
+
+async def get_teams(
+    tournament_id: int
+):
+
+    async with aiosqlite.connect(DB_PATH) as db:
+
+        db.row_factory = aiosqlite.Row
+
+        cursor = await db.execute(
+            """
+            SELECT *
+
+            FROM teams
+
+            WHERE tournament_id = ?
+
+            ORDER BY slot
+            """,
+            (tournament_id,),
+        )
+
+        return await cursor.fetchall()
+
+
+# =====================================================
+# RANKINGS
+# =====================================================
+
+async def insert_rankings(
+    tournament_id: int,
+    rankings: list[tuple[int, int]],
+):
+
+    async with aiosqlite.connect(DB_PATH) as db:
+
+        for placement, points in rankings:
+
+            await db.execute(
+                """
+                INSERT INTO rankings
+                (
+                    tournament_id,
+                    placement,
+                    points
+                )
+
+                VALUES (?, ?, ?)
+                """,
+                (
+                    tournament_id,
+                    placement,
+                    points,
+                ),
+            )
+
+        await db.commit()
+
+
+async def get_rankings(
+    tournament_id: int
+):
+
+    async with aiosqlite.connect(DB_PATH) as db:
+
+        db.row_factory = aiosqlite.Row
+
+        cursor = await db.execute(
+            """
+            SELECT *
+
+            FROM rankings
+
+            WHERE tournament_id = ?
+
+            ORDER BY placement
+            """,
+            (tournament_id,),
+        )
+
+        return await cursor.fetchall()
