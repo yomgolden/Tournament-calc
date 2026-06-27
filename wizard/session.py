@@ -1,52 +1,40 @@
-# wizard/session.py
+"""
+FSM State Groups
+"""
 
-from dataclasses import dataclass, field
-from typing import Any
+from aiogram.fsm.state import State, StatesGroup
 
 
-@dataclass
-class WizardSession:
+class CreateTournament(StatesGroup):
 
-    user_id: int
+    # Step 1
+    name = State()
 
-    screen: str = ""
+    # Step 2
+    num_teams = State()
 
-    message_id: int | None = None
+    # Step 3
+    entering_teams = State()
 
-    history: list[str] = field(default_factory=list)
+    # Step 4
+    ranking_mode = State()
 
-    data: dict[str, Any] = field(default_factory=dict)
+    ranking_max_points = State()
 
-    def goto(self, screen: str):
+    ranking_kill_points = State()
 
-        if self.screen:
-            self.history.append(self.screen)
+    ranking_preview = State()
 
-        self.screen = screen
+    # Step 5
+    summary = State()
 
-    def back(self):
 
-        if not self.history:
-            return None
+class EnterResult(StatesGroup):
 
-        self.screen = self.history.pop()
+    choose_match = State()
 
-        return self.screen
+    choose_team = State()
 
-    def set(self, key, value):
+    enter_placement = State()
 
-        self.data[key] = value
-
-    def get(self, key, default=None):
-
-        return self.data.get(key, default)
-
-    def reset(self):
-
-        self.screen = ""
-
-        self.history.clear()
-
-        self.data.clear()
-
-        self.message_id = None
+    enter_kills = State()
