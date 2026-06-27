@@ -1,3 +1,7 @@
+"""
+/start command
+"""
+
 from aiogram import Router
 from aiogram.filters import CommandStart
 from aiogram.types import (
@@ -6,11 +10,19 @@ from aiogram.types import (
     InlineKeyboardButton
 )
 
+from database.storage import upsert_user
+
 router = Router()
 
 
 @router.message(CommandStart())
 async def start(message: Message):
+
+    # Save or update user
+    await upsert_user(
+        telegram_id=message.from_user.id,
+        username=message.from_user.username
+    )
 
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -40,14 +52,13 @@ async def start(message: Message):
     )
 
     text = (
-        "🏆 <b>Tournament Manager</b>\n\n"
-        "Welcome!\n\n"
-        "Manage Battle Royale tournaments directly from Telegram.\n\n"
+        "<b>🏆 Tournament Manager</b>\n\n"
+        "Welcome to Tournament Manager.\n\n"
+        "Create and manage Battle Royale tournaments directly from Telegram.\n\n"
         "Choose an option below."
     )
 
     await message.answer(
-        text,
-        parse_mode="HTML",
+        text=text,
         reply_markup=keyboard
     )
