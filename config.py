@@ -1,88 +1,40 @@
-# config.py
+"""
+Global Configuration
+"""
 
 import os
 from dotenv import load_dotenv
 
-# Load environment variables
 load_dotenv()
-
-# ==========================
-# BOT INFORMATION
-# ==========================
-
-BOT_NAME = "Tournament Manager"
-BOT_VERSION = "2.0.0"
-
-# ==========================
-# TELEGRAM
-# ==========================
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
-# ==========================
-# DATABASE
-# ==========================
+if not BOT_TOKEN:
+    raise ValueError(
+        "BOT_TOKEN is missing inside .env"
+    )
 
-DATABASE_NAME = "tournament.db"
-DATABASE_PATH = f"data/{DATABASE_NAME}"
+# ---------------------------------
+# Tournament
+# ---------------------------------
 
-# ==========================
-# APPLICATION SETTINGS
-# ==========================
-
-DEBUG = True
+MIN_TEAMS = 2
+MAX_TEAMS = 100
 
 DEFAULT_KILL_POINTS = 1
 
-MIN_TEAMS = 2
+TEAM_DISPLAY_LIMIT = 5
 
-MAX_TEAMS = 100
+# ---------------------------------
+# Database
+# ---------------------------------
 
-MAX_TOURNAMENTS_PER_USER = 100
+DB_PATH = "tournament.db"
 
-MAX_TEAM_NAME_LENGTH = 40
+# ---------------------------------
+# Bot
+# ---------------------------------
 
-MAX_TOURNAMENT_NAME_LENGTH = 50
+BOT_NAME = "Tournament Manager"
 
-# ==========================
-# TOURNAMENT MODES
-# ==========================
-
-TOURNAMENT_MODES = [
-    "Battle Royale",
-    # Future Modes
-    "Multiplayer",
-    "Single Elimination",
-    "Double Elimination",
-    "Swiss",
-    "Round Robin",
-    "League",
-    "FFA",
-    "Race"
-]
-
-# ==========================
-# STATUS
-# ==========================
-
-STATUS_ACTIVE = "Active"
-STATUS_FINISHED = "Finished"
-STATUS_ARCHIVED = "Archived"
-
-# ==========================
-# EMOJIS
-# ==========================
-
-EMOJI = {
-    "success": "✅",
-    "error": "❌",
-    "warning": "⚠️",
-    "trophy": "🏆",
-    "team": "👥",
-    "results": "📝",
-    "leaderboard": "📊",
-    "settings": "⚙️",
-    "back": "⬅️",
-    "next": "➡️",
-    "cancel": "❌"
-}
+VERSION = "1.0.0"
